@@ -1,0 +1,183 @@
+---
+title: "Projeto Integração de Dados"
+author: "Madalena Reis"
+format: html
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+# Code
+
+## Carregar pacotes
+
+```{r}
+# Carregar pacotes necessários (sem mensagens ou warnings no HTML)
+suppressPackageStartupMessages(suppressWarnings({
+  library(readr)
+  library(dplyr)
+  library(ggplot2)
+  library(scales)
+}))
+
+```
+
+## Ler bases de dados
+
+```{r}
+#| echo: true
+
+# Ler ficheiro de arrecadação (com supressão de mensagens de parsing)
+arrecadacao <- suppressMessages(
+  read_csv2("dataset/Arrecadação por UF.csv",
+            locale = locale(encoding = "Latin1"), 
+            show_col_types = FALSE)
+)
+
+# Ler ficheiro de população abastecida
+sisagua <- suppressMessages(
+  read_csv2("dataset/cadastro_populacao_abastecida.csv",
+            locale = locale(encoding = "Latin1"),
+            show_col_types = FALSE)
+)
+
+# Converter coluna "OUTRAS RECEITAS ADMINISTRADAS" para numérico
+arrecadacao <- arrecadacao %>%
+  mutate(`OUTRAS RECEITAS ADMINISTRADAS` = parse_number(`OUTRAS RECEITAS ADMINISTRADAS`))
+```
+
+## Agregar e integrar bases (join)
+
+```{r}
+#| echo: true
+# Agregar arrecadação por UF (somatório total)
+arrec_agregado <- arrecadacao %>%
+  group_by(UF) %>%
+  summarise(OUTRAS_RECEITAS = sum(`OUTRAS RECEITAS ADMINISTRADAS`, na.rm = TRUE))
+
+# Agregar população por UF (somatório total)
+sisagua_agregado <- sisagua %>%
+  group_by(UF) %>%
+  summarise(POP_ESTIMADA = sum(`População estimada`, na.rm = TRUE))
+
+# Integrar os dois datasets pelo identificador comum "UF"
+# e garantir que não existem NAs
+dados_integrados <- left_join(arrec_agregado, sisagua_agregado, by = "UF") %>%
+  filter(!is.na(POP_ESTIMADA) & !is.na(OUTRAS_RECEITAS))
+```
+
+## Criar Gráfico
+
+```{r}
+#| echo: true
+# Criar gráfico scatter com supressão de mensagens irrelevantes
+suppressWarnings(suppressMessages(
+  ggplot(dados_integrados, aes(x = POP_ESTIMADA, y = OUTRAS_RECEITAS, label = UF)) +
+    # Pontos azuis para cada estado
+    geom_point(color = "blue", size = 3) +
+    # Adicionar siglas dos estados junto aos pontos
+    geom_text(vjust = -1, hjust = 0.5, size = 2) +
+    # Linha de regressão linear (tendência)
+    suppressMessages(geom_smooth(method = "lm", se = FALSE, color = "red")) +
+    # Títulos e legendas dos eixos
+    labs(
+      title = "Arrecadação vs População Abastecida por UF",
+      x = "População Abastecida Total",
+      y = "Outras Receitas Administradas (Total em R$)",
+      caption = "Dados agregados de 2000 a 2025"
+    ) +
+    # Escalas logarítmicas, com notação compacta (M = milhão, G = bilhão, T = trilhão)
+    scale_x_log10(labels = label_number(scale_cut = cut_si("M"))) +
+    scale_y_log10(labels = label_number(scale_cut = cut_si("M"))) +
+    # Tema minimalista para estética limpa
+    theme_minimal()
+))
+
+```
+
+
+
+## Interpretação do Gráfico
+
+O gráfico apresenta a relação entre a população abastecida total por UF (eixo X) e as outras receitas administradas (total em R\$) (eixo Y). Ambos os eixos estão em escala logarítmica, representados em milhões (MM), bilhões (GM) e trilhões (TM), o que permite comparar grandezas muito diferentes de forma proporcional.
+
+A linha vermelha representa a reta de regressão linear ajustada aos dados: ou seja, a tendência média da relação entre população e receitas. O facto de a reta ter inclinação positiva confirma a correlação positiva: estados com maior população abastecida tendem, em média, a apresentar maior arrecadação.
+
+A dispersão dos pontos em torno da linha mostra o desvio em relação ao padrão esperado. Quanto mais distante um ponto estiver da linha, maior a discrepância entre a arrecadação real e a prevista pela relação populacional.
+
+
+Estados muito acima da linha, como DF, arrecadam mais do que seria esperado para a sua população, o que pode refletir fatores administrativos, maior peso de receitas específicas ou particularidades socioeconómicas.
+
+Estados mais abaixo da linha, como PI, apresentam arrecadação menor do que a esperada, sugerindo limitações na capacidade de gerar receitas em proporção ao tamanho da população abastecida.
+
+São Paulo (SP) destaca-se como o estado mais à direita e no topo do gráfico: possui a maior população abastecida e também a maior arrecadação, relativamento alinhado com a tendência geral.
+
+No extremo inferior esquerdo, Amapá (AP), Acre (AC) e Roraima (RR) concentram-se como estados de menor população abastecida e baixa arrecadação, posicionando-se próximos da base da reta. Estes casos ilustram a dimensão reduzida destas UFs no contexto nacional.
+
+# Code
+
+## Cálculo percentagem canalização e arrecadação por município
+```{r}
+#| echo: true
+
+perc_canalizada_RJ <- sisagua %>%
+  filter(UF == "RJ" & `Ano de referência` %in% c(2014 ,2016, 2018 ,2020 ,2024)) %>%
+  # Remover linhas com NA na coluna Canalização
+  filter(!is.na(Canalização)) %>%
+  group_by(`Ano de referência`) %>%
+  summarise(
+    # Calcular porcentagem corretamente e multiplicar por 100
+    perc_canalizada = mean(Canalização == "Sim", na.rm = TRUE) * 100
+  )
+# Filtrar RJ e anos desejados
+arrecadacao_RJ <- arrecadacao %>%
+  filter(UF == "RJ" & Ano %in% c(2014, 2016, 2018, 2020, 2024)) %>%
+  mutate(
+    IRPF_numeric = suppressWarnings(
+      as.numeric(gsub("[^0-9,]", "", IRPF))
+    )
+  ) %>%
+  filter(!is.na(IRPF_numeric)) %>%
+  group_by(Ano) %>%
+  summarise(
+    receita_media_IRPF = mean(IRPF_numeric, na.rm = TRUE)
+  )
+
+```
+
+## Agregar e Integrar dados
+```{r}
+#| echo: true
+
+dados_RJ <- left_join(
+  perc_canalizada_RJ, 
+  arrecadacao_RJ, 
+  by = c("Ano de referência" = "Ano")
+)
+
+```
+
+## Criar Gráfico
+```{r}
+#| echo: true
+ggplot(dados_RJ, aes(x = perc_canalizada, y = receita_media_IRPF, label = `Ano de referência`)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(aes(group = 1), color = "red") +
+  geom_text(vjust = -1, hjust = 0.5) +
+  # REMOVER ou ALTERAR a linha abaixo:
+  scale_x_continuous(limits = c(0, 100)) +  # Apenas define limites de 0 a 100%
+  scale_y_continuous(
+    labels = scales::label_number(
+      scale_cut = scales::cut_short_scale()  # K, M, B, T automaticamente
+    ),
+    limits = c(0, max(dados_RJ$receita_media_IRPF) * 1.1)
+  ) +
+  labs(
+    title = "Arrecadação IRPF vs Água Canalizada no RJ",
+    x = "Percentagem de municípios com água canalizada (%)",
+    y = "Média de Receita IRPF mensal do RJ (R$)",
+    caption = "Anos analisados: 2014, 2016, 2018, 2020, 2024"
+  ) +
+  theme_minimal()
+
+```
