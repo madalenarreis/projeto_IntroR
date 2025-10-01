@@ -5,7 +5,7 @@
 ## Descrição do Projeto:
 Este projeto realiza uma análise integrada de dados governamentais brasileiros, combinando diferentes fontes oficiais para extrair insights sobre desenvolvimento regional e políticas públicas. A abordagem utiliza técnicas modernas de análise de dados para investigar relações entre variáveis socioeconómicas e indicadores de desenvolvimento.
 
-Mais especificamnete, realizei uma análise integrada entre dados de arrecadação fiscal e indicadores de infraestrutura de saneamento básico no Brasil. O objetivo foi investigar possíveis correlações entre o desenvolvimento de infraestrutura pública e a capacidade de arrecadação tributária.
+Mais especificamente, realizei uma análise integrada entre dados de arrecadação fiscal e indicadores de infraestrutura de saneamento básico no Brasil. O objetivo foi investigar possíveis correlações entre o desenvolvimento de infraestrutura pública e a capacidade de arrecadação tributária.
 
 ## Origem das Bases de Dados
 As bases de dados utilizadas neste projeto foram selecionadas através do seguinte prompt enviado ao ChatGPT:
