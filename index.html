@@ -143,57 +143,84 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="agregar-e-integrar-bases-join" class="level2">
 <h2 class="anchored" data-anchor-id="agregar-e-integrar-bases-join">Agregar e integrar bases (join)</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Agregar arrecadação por UF (somatório total)</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>arrec_agregado <span class="ot">&lt;-</span> arrecadacao <span class="sc">%&gt;%</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF) <span class="sc">%&gt;%</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">OUTRAS_RECEITAS =</span> <span class="fu">sum</span>(<span class="st">`</span><span class="at">OUTRAS RECEITAS ADMINISTRADAS</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Agregar população por UF (somatório total)</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>sisagua_agregado <span class="ot">&lt;-</span> sisagua <span class="sc">%&gt;%</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF) <span class="sc">%&gt;%</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">POP_ESTIMADA =</span> <span class="fu">sum</span>(<span class="st">`</span><span class="at">População estimada</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># group_by(UF, Ano) -&gt; agrupa os dados por estado e por ano</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># soma as receitas dos vários meses do ano</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>arrec_anual <span class="ot">&lt;-</span> arrecadacao <span class="sc">%&gt;%</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF, Ano) <span class="sc">%&gt;%</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">OUTRAS_RECEITAS_ANO =</span> <span class="fu">sum</span>(<span class="st">`</span><span class="at">OUTRAS RECEITAS ADMINISTRADAS</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()  <span class="co"># garante que não ficam grupos ativos</span></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Integrar os dois datasets pelo identificador comum "UF"</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># e garantir que não existem NAs</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>dados_integrados <span class="ot">&lt;-</span> <span class="fu">left_join</span>(arrec_agregado, sisagua_agregado, <span class="at">by =</span> <span class="st">"UF"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(POP_ESTIMADA) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(OUTRAS_RECEITAS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Calcular a média anual de arrecadação por UF</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># calcula a média das receitas anuais (todos os anos analisados)</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>arrec_agregado <span class="ot">&lt;-</span> arrec_anual <span class="sc">%&gt;%</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF) <span class="sc">%&gt;%</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">OUTRAS_RECEITAS =</span> <span class="fu">mean</span>(OUTRAS_RECEITAS_ANO, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co">#group_by(UF, `Ano de referência`) -&gt; agrupa os dados por estado e por ano</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># soma a população estimada dos vários munícipios da UF</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>sisagua_anual <span class="ot">&lt;-</span> sisagua <span class="sc">%&gt;%</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF, <span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">POP_ANO =</span> <span class="fu">sum</span>(<span class="st">`</span><span class="at">População estimada</span><span class="st">`</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()  </span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Calcular a média anual da população abastecida por UF</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co"># calcula a média da população abastecida (todos os anos analisados)</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>sisagua_agregado <span class="ot">&lt;-</span> sisagua_anual <span class="sc">%&gt;%</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(UF) <span class="sc">%&gt;%</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">POP_ESTIMADA =</span> <span class="fu">mean</span>(POP_ANO, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="co"># ---------------------------------------------------------------</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Integrar os dois datasets pelo identificador comum "UF"</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># left_join -&gt; mantém todos os estados da arrecadação</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># filter(!is.na(...)) -&gt; garante valores ausentes não são contabilizados</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>dados_integrados <span class="ot">&lt;-</span> <span class="fu">left_join</span>(arrec_agregado, sisagua_agregado, <span class="at">by =</span> <span class="st">"UF"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(POP_ESTIMADA) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(OUTRAS_RECEITAS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<p>Para representar a arrecadação por UF, utilizou-se a variável OUTRAS RECEITAS ADMINISTRADAS, assumindo-a como uma aproximação proporcional do total de receitas. Já a variável POPULAÇÃO ESTIMADA abastecida foi escolhida como medida comparável entre UFs, refletindo a dimensão da população efetivamente abrangida pelo sistema de abastecimento.</p>
 </section>
 <section id="criar-gráfico" class="level2">
 <h2 class="anchored" data-anchor-id="criar-gráfico">Criar Gráfico</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Criar gráfico scatter com supressão de mensagens irrelevantes</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressWarnings</span>(<span class="fu">suppressMessages</span>(</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(dados_integrados, <span class="fu">aes</span>(<span class="at">x =</span> POP_ESTIMADA, <span class="at">y =</span> OUTRAS_RECEITAS, <span class="at">label =</span> UF)) <span class="sc">+</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Pontos azuis para cada estado</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Adicionar siglas dos estados junto aos pontos</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_text</span>(<span class="at">vjust =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Linha de regressão linear (tendência)</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">suppressMessages</span>(<span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">color =</span> <span class="st">"red"</span>)) <span class="sc">+</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Títulos e legendas dos eixos</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">title =</span> <span class="st">"Arrecadação vs População Abastecida por UF"</span>,</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">x =</span> <span class="st">"População Abastecida Total"</span>,</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      <span class="at">y =</span> <span class="st">"Outras Receitas Administradas (Total em R$)"</span>,</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"Dados agregados de 2000 a 2025"</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Escalas logarítmicas, com notação compacta (M = milhão, G = bilhão, T = trilhão)</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_log10</span>(<span class="at">labels =</span> <span class="fu">label_number</span>(<span class="at">scale_cut =</span> <span class="fu">cut_si</span>(<span class="st">"M"</span>))) <span class="sc">+</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_log10</span>(<span class="at">labels =</span> <span class="fu">label_number</span>(<span class="at">scale_cut =</span> <span class="fu">cut_si</span>(<span class="st">"M"</span>))) <span class="sc">+</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Tema minimalista para estética limpa</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>()</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`geom_smooth()` using formula = 'y ~ x'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: The following aesthetics were dropped during statistical transformation: label.
-ℹ This can happen when ggplot fails to infer the correct grouping structure in
-  the data.
-ℹ Did you forget to specify a `group` aesthetic or to convert a numerical
-  variable into a factor?</code></pre>
-</div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressMessages</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(dados_integrados, <span class="fu">aes</span>(<span class="at">x =</span> POP_ESTIMADA, <span class="at">y =</span> OUTRAS_RECEITAS)) <span class="sc">+</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Cada ponto azul representa uma UF (estado)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Adiciona a sigla da UF junto a cada ponto</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> UF), <span class="at">vjust =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Adiciona uma linha de regressão linear (reta de tendência)</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># formula = y ~ x -&gt; define explicitamente a relação para não aparecer o "Info"</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Títulos e legendas dos eixos</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">title =</span> <span class="st">"Arrecadação vs População Abastecida por UF anualmente"</span>,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">x =</span> <span class="st">"População Abastecida"</span>,</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">y =</span> <span class="st">"Outras Receitas Administradas (R$)"</span>,</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"Dados agregados de 2000 a 2025"</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Escalas logarítmicas nos dois eixos</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cut_si -&gt; usa notação curta (K = mil, M = milhão, B = bilhão, T = trilhão)</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_log10</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(<span class="at">scale_cut =</span> scales<span class="sc">::</span><span class="fu">cut_si</span>(<span class="st">"M"</span>))) <span class="sc">+</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_log10</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(<span class="at">scale_cut =</span> scales<span class="sc">::</span><span class="fu">cut_si</span>(<span class="st">"M"</span>))) <span class="sc">+</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Tema minimalista para visual mais limpo</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>()</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -205,7 +232,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="interpretação-do-gráfico" class="level2">
 <h2 class="anchored" data-anchor-id="interpretação-do-gráfico">Interpretação do Gráfico</h2>
-<p>O gráfico apresenta a relação entre a população abastecida total por UF (eixo X) e as outras receitas administradas (total em R$) (eixo Y). Ambos os eixos estão em escala logarítmica, representados em milhões (MM), bilhões (GM) e trilhões (TM), o que permite comparar grandezas muito diferentes de forma proporcional.</p>
+<p>O gráfico apresenta a relação entre a média anual da população abastecida (eixo X) e média anual das outras receitas administradas(R$) (eixo Y), entre 2000 e 2025 . Ambos os eixos estão em escala logarítmica, representados em K = mil, M = milhão, B = Bilhão, o que permite comparar grandezas muito diferentes de forma proporcional.</p>
 <p>A linha vermelha representa a reta de regressão linear ajustada aos dados: ou seja, a tendência média da relação entre população e receitas. O facto de a reta ter inclinação positiva confirma a correlação positiva: estados com maior população abastecida tendem, em média, a apresentar maior arrecadação.</p>
 <p>A dispersão dos pontos em torno da linha mostra o desvio em relação ao padrão esperado. Quanto mais distante um ponto estiver da linha, maior a discrepância entre a arrecadação real e a prevista pela relação populacional.</p>
 <p>Estados muito acima da linha, como DF, arrecadam mais do que seria esperado para a sua população, o que pode refletir fatores administrativos, maior peso de receitas específicas ou particularidades socioeconómicas.</p>
@@ -219,62 +246,64 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="cálculo-percentagem-canalização-e-arrecadação-por-município" class="level2">
 <h2 class="anchored" data-anchor-id="cálculo-percentagem-canalização-e-arrecadação-por-município">Cálculo percentagem canalização e arrecadação por município</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>perc_canalizada_RJ <span class="ot">&lt;-</span> sisagua <span class="sc">%&gt;%</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(UF <span class="sc">==</span> <span class="st">"RJ"</span> <span class="sc">&amp;</span> <span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span> <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2014</span> ,<span class="dv">2016</span>, <span class="dv">2018</span> ,<span class="dv">2020</span> ,<span class="dv">2024</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remover linhas com NA na coluna Canalização</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Canalização)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calcular porcentagem corretamente e multiplicar por 100</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">perc_canalizada =</span> <span class="fu">mean</span>(Canalização <span class="sc">==</span> <span class="st">"Sim"</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">*</span> <span class="dv">100</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtrar RJ e anos desejados</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>arrecadacao_RJ <span class="ot">&lt;-</span> arrecadacao <span class="sc">%&gt;%</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(UF <span class="sc">==</span> <span class="st">"RJ"</span> <span class="sc">&amp;</span> Ano <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>, <span class="dv">2020</span>, <span class="dv">2024</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">IRPF_numeric =</span> <span class="fu">suppressWarnings</span>(</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.numeric</span>(<span class="fu">gsub</span>(<span class="st">"[^0-9,]"</span>, <span class="st">""</span>, IRPF))</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(IRPF_numeric)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Ano) <span class="sc">%&gt;%</span></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">receita_media_IRPF =</span> <span class="fu">mean</span>(IRPF_numeric, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>perc_canalizada_RJ <span class="ot">&lt;-</span> sisagua <span class="sc">%&gt;%</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(UF <span class="sc">==</span> <span class="st">"RJ"</span> <span class="sc">&amp;</span> <span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span> <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2014</span> ,<span class="dv">2016</span>, <span class="dv">2018</span> ,<span class="dv">2020</span> ,<span class="dv">2024</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remover linhas com NA na coluna Canalização</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Canalização)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calcular porcentagem corretamente e multiplicar por 100</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">perc_canalizada =</span> <span class="fu">mean</span>(Canalização <span class="sc">==</span> <span class="st">"Sim"</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">*</span> <span class="dv">100</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtrar RJ e anos desejados</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>arrecadacao_RJ <span class="ot">&lt;-</span> arrecadacao <span class="sc">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(UF <span class="sc">==</span> <span class="st">"RJ"</span> <span class="sc">&amp;</span> Ano <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>, <span class="dv">2020</span>, <span class="dv">2024</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">IRPF_numeric =</span> <span class="fu">suppressWarnings</span>(</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.numeric</span>(<span class="fu">gsub</span>(<span class="st">"[^0-9,]"</span>, <span class="st">""</span>, IRPF))</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(IRPF_numeric)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Ano) <span class="sc">%&gt;%</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">receita_media_IRPF =</span> <span class="fu">mean</span>(IRPF_numeric, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="agregar-e-integrar-dados" class="level2">
 <h2 class="anchored" data-anchor-id="agregar-e-integrar-dados">Agregar e Integrar dados</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dados_RJ <span class="ot">&lt;-</span> <span class="fu">left_join</span>(</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  perc_canalizada_RJ, </span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  arrecadacao_RJ, </span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Ano de referência"</span> <span class="ot">=</span> <span class="st">"Ano"</span>)</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>dados_RJ <span class="ot">&lt;-</span> <span class="fu">left_join</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  perc_canalizada_RJ, </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  arrecadacao_RJ, </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Ano de referência"</span> <span class="ot">=</span> <span class="st">"Ano"</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<p>Para representar a arrecadação do estado do Rio de Janeiro, utilizou-se a variável IRPF (Imposto de Renda da Pessoa Física) da base de dados <em>arrecadaçao</em>, que reflete diretamente a capacidade contributiva da população e o nível de formalização do mercado de trabalho no estado.</p>
+<p>Já a variável canalização da base de dados <em>sisagua</em> foi escolhida como indicador do desenvolvimento da infraestrutura básica de saneamento, sendo usada para calcular a percentagem de municípios que possuem sistema de canalização na distribuição de água, em contraste com outras alternativas de abastecimento.</p>
 </section>
 <section id="criar-gráfico-1" class="level2">
 <h2 class="anchored" data-anchor-id="criar-gráfico-1">Criar Gráfico</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(dados_RJ, <span class="fu">aes</span>(<span class="at">x =</span> perc_canalizada, <span class="at">y =</span> receita_media_IRPF, <span class="at">label =</span> <span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span>)) <span class="sc">+</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">group =</span> <span class="dv">1</span>), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="at">vjust =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># REMOVER ou ALTERAR a linha abaixo:</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>)) <span class="sc">+</span>  <span class="co"># Apenas define limites de 0 a 100%</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">scale_cut =</span> scales<span class="sc">::</span><span class="fu">cut_short_scale</span>()  <span class="co"># K, M, B, T automaticamente</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(dados_RJ<span class="sc">$</span>receita_media_IRPF) <span class="sc">*</span> <span class="fl">1.1</span>)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Arrecadação IRPF vs Água Canalizada no RJ"</span>,</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Percentagem de municípios com água canalizada (%)"</span>,</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Média de Receita IRPF mensal do RJ (R$)"</span>,</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">"Anos analisados: 2014, 2016, 2018, 2020, 2024"</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(dados_RJ, <span class="fu">aes</span>(<span class="at">x =</span> perc_canalizada, <span class="at">y =</span> receita_media_IRPF, <span class="at">label =</span> <span class="st">`</span><span class="at">Ano de referência</span><span class="st">`</span>)) <span class="sc">+</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">group =</span> <span class="dv">1</span>), <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="at">vjust =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># REMOVER ou ALTERAR a linha abaixo:</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>)) <span class="sc">+</span>  <span class="co"># Apenas define limites de 0 a 100%</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">scale_cut =</span> scales<span class="sc">::</span><span class="fu">cut_short_scale</span>()  <span class="co"># K, M, B, T automaticamente</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(dados_RJ<span class="sc">$</span>receita_media_IRPF) <span class="sc">*</span> <span class="fl">1.1</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Arrecadação IRPF vs Água Canalizada no RJ"</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Percentagem de municípios com água canalizada (%)"</span>,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Média de Receita IRPF mensal do RJ (R$)"</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">"Anos analisados: 2014, 2016, 2018, 2020, 2024"</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -283,6 +312,108 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+</section>
+</section>
+<section id="interpretação-do-gráfico-1" class="level1">
+<h1>Interpretação do Gráfico</h1>
+<p>O gráfico apresenta a relação entre a percentagem de municípios com água canalizada (eixo X) e a média de receita do IRPF mensal (eixo Y) no estado do Rio de Janeiro, nos anos de 2014, 2016, 2018, 2020 e 2024. O eixo Y está representado numa escala abreviada (M = milhão, B = bilhão), permitindo visualizar a evolução de valores financeiros de grande magnitude.</p>
+<p>A linha vermelha representa a evolução temporal da relação entre as duas variáveis, mostrando a tendência geral ao longo dos anos analisados. A inclinação positiva da linha confirma uma correlação positiva entre as variáveis: à medida que aumenta a arrecadação média do IRPF do RJ, tende a aumentar também a percentagem de municípios com água canalizada.</p>
+<p>Os valores relativamente baixos de percentagem de canalização (entre aproximadamente 20% e 45%) refletem a realidade do estado do Rio de Janeiro, onde muitos municípios, especialmente em zonas rurais e periféricas, utilizam formas alternativas de acesso à água como chafarizes, poços, carro-pipa, fontes, cisternas e caixas d’água, em vez de sistemas de canalização convencionais.</p>
+<p>A forte correlação observada sugere que o desenvolvimento da infraestrutura básica de saneamento (representada pela canalização de água) pode estar associado a melhorias socioeconómicas que se refletem no aumento da arrecadação do imposto de renda, possivelmente indicando maior formalização do trabalho, melhores rendimentos da população e fortalecimento da atividade econômica no estado.</p>
+</section>
+<section id="glossário-de-variáveis" class="level1">
+<h1>Glossário de Variáveis</h1>
+<section id="arrecadação" class="level3">
+<h3 class="anchored" data-anchor-id="arrecadação"><em>arrecadação</em></h3>
+<p>Variável em que está guardada a base de dados inicial nomeada “Arrecadação por UF.csv”. Tem 47 variáveis (colunas) e 8290 observações (linhas).</p>
+</section>
+<section id="sisagua" class="level3">
+<h3 class="anchored" data-anchor-id="sisagua"><em>sisagua</em></h3>
+<p>Variável em que está guardada a base de dados inicial nomeada “cadastro_populacao_abastecida.csv”. Tem 37 variáveis (colunas) e 1720737 observações (linhas).</p>
+<section id="uf" class="level4">
+<h4 class="anchored" data-anchor-id="uf">UF</h4>
+<p>Variável de ambas as bases de dados <em>arrecadação</em> e <em>sisagua</em>. Foi usada para agregação e integração de novas bases de dados.</p>
+</section>
+</section>
+<section id="ano-ou-ano-de-referência" class="level3">
+<h3 class="anchored" data-anchor-id="ano-ou-ano-de-referência">Ano ou Ano de Referência</h3>
+<p>Variáveis (colunas) das bases <em>arrecadaçao</em> e <em>sisagua</em>, respetivamente. Foram usadas para agregação e integração de novas bases de dados.</p>
+<section id="outras-receitas-administradas" class="level4">
+<h4 class="anchored" data-anchor-id="outras-receitas-administradas">OUTRAS RECEITAS ADMINISTRADAS</h4>
+<p>Variável da base de dados <em>arrecadação</em> que representa o valor em reais (R$) das receitas adicionais mensais por UF.</p>
+</section>
+<section id="outras_receitas_ano" class="level4">
+<h4 class="anchored" data-anchor-id="outras_receitas_ano">OUTRAS_RECEITAS_ANO</h4>
+<p>Variável criada para a base de dados <em>arrec_anual</em>. Contém a soma de todos os valores OUTRAS RECEITAS ADMINISTRADAS por UF nos vários anos analisados em arrecadação (2000- 2025).</p>
+</section>
+</section>
+<section id="arrec_anual" class="level3">
+<h3 class="anchored" data-anchor-id="arrec_anual"><em>arrec_anual</em></h3>
+<p>Base de dados que contém: UF, ano, e OUTRAS_RECEITAS_ANO.</p>
+<section id="outras_receitas" class="level4">
+<h4 class="anchored" data-anchor-id="outras_receitas">OUTRAS_RECEITAS</h4>
+<p>Variável criada para a base de dados <em>arrec_agregado</em> e posteriormente <em>dados_integrados</em>. Representa a média anual de todos os valores OUTRAS_RECEITAS_ANO por UF (dos anos em análise: 2000- 2025).</p>
+</section>
+</section>
+<section id="arrec_agregado" class="level3">
+<h3 class="anchored" data-anchor-id="arrec_agregado"><em>arrec_agregado</em></h3>
+<p>Base de dados que contém: UF, OUTRAS_RECEITAS.</p>
+</section>
+<section id="população_estimada" class="level3">
+<h3 class="anchored" data-anchor-id="população_estimada">População_estimada</h3>
+<p>Variável da base de dados <em>sisagua</em> que contém o número de pessoas abastecidas com água por municío por UF.</p>
+<section id="pop_ano" class="level4">
+<h4 class="anchored" data-anchor-id="pop_ano">POP_ANO</h4>
+<p>Variável criada para a base de dados <em>sisagua_anual</em>. Contém a soma de todos os valores da variável População_estimada nos vários anos analisados em sisagua (2000- 2025).</p>
+</section>
+</section>
+<section id="sisagua_anual" class="level3">
+<h3 class="anchored" data-anchor-id="sisagua_anual"><em>sisagua_anual</em></h3>
+<p>Base de dados que contém: UF, Ano de referência e POP_ANO.</p>
+<section id="pop_estimada" class="level4">
+<h4 class="anchored" data-anchor-id="pop_estimada">POP_ESTIMADA</h4>
+<p>Variável criada para a base de dados <em>sisagua_agregado</em> e posteriormente <em>dados_integrados</em>. Representa a média anual de todos os valores POP_ANO por UF (dos anos em análise: 2000- 2025).</p>
+</section>
+</section>
+<section id="sisagua_agregado" class="level3">
+<h3 class="anchored" data-anchor-id="sisagua_agregado"><em>sisagua_agregado</em></h3>
+<p>Base de dados que contém: UF e POP_ESTIMADA.</p>
+</section>
+<section id="dados_agregados" class="level3">
+<h3 class="anchored" data-anchor-id="dados_agregados"><em>dados_agregados</em></h3>
+<p>Base de dados que contém: UF, OUTRAS_RECEITAS e POP_ESTIMADA.</p>
+</section>
+<section id="canalização" class="level3">
+<h3 class="anchored" data-anchor-id="canalização">Canalização</h3>
+<p>Variável da base de dados <em>sisagua</em> que indica se a localidade possui canalização (“Sim”, “Não”, NA). Foi utilizada para calcular a percentagem de localidades canalizadas.</p>
+</section>
+<section id="perc_canalizada" class="level3">
+<h3 class="anchored" data-anchor-id="perc_canalizada">perc_canalizada</h3>
+<p>Variável criada para a base de dados <em>perc_canalizada_RJ</em>. Representa a percentagem anual de localidades com canalização (“Sim”) nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.</p>
+</section>
+<section id="perc_canalizada_rj" class="level3">
+<h3 class="anchored" data-anchor-id="perc_canalizada_rj"><em>perc_canalizada_RJ</em></h3>
+<p>Base de dados criada que contém: Ano de referência e perc_canalizada.</p>
+<section id="irpf" class="level4">
+<h4 class="anchored" data-anchor-id="irpf">IRPF</h4>
+<p>Variável da base de dados <em>arrecadação</em> que contém o valor arrecadado do Imposto de Renda da Pessoa Física por UF, originalmente em formato de texto com caracteres especiais.</p>
+</section>
+</section>
+<section id="irpf_numeric" class="level3">
+<h3 class="anchored" data-anchor-id="irpf_numeric">IRPF_numeric</h3>
+<p>Variável que representa o valor numérico do IRPF após limpeza dos caracteres especiais e conversão para formato numérico.</p>
+</section>
+<section id="receita_media_irpf" class="level3">
+<h3 class="anchored" data-anchor-id="receita_media_irpf">receita_media_IRPF</h3>
+<p>Variável criada para a base de dados <em>arrecadacao_RJ</em>. Representa a média anual dos valores IRPF_numeric nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.</p>
+</section>
+<section id="arrecadacao_rj" class="level3">
+<h3 class="anchored" data-anchor-id="arrecadacao_rj">arrecadacao_RJ</h3>
+<p>Base de dados criada que contém: Ano e receita_media_IRPF.</p>
+</section>
+<section id="dados_rj" class="level3">
+<h3 class="anchored" data-anchor-id="dados_rj"><em>dados_RJ</em></h3>
+<p>Base de dados que contém: Ano de referência, perc_canalizada e receita_media_IRPF.</p>
 </section>
 </section>
 

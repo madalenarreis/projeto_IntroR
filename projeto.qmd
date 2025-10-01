@@ -2,6 +2,7 @@
 title: "Projeto Integração de Dados"
 author: "Madalena Reis"
 format: html
+output-file: index.html
 editor: visual
 ---
 
@@ -50,61 +51,102 @@ arrecadacao <- arrecadacao %>%
 
 ```{r}
 #| echo: true
-# Agregar arrecadação por UF (somatório total)
-arrec_agregado <- arrecadacao %>%
-  group_by(UF) %>%
-  summarise(OUTRAS_RECEITAS = sum(`OUTRAS RECEITAS ADMINISTRADAS`, na.rm = TRUE))
 
-# Agregar população por UF (somatório total)
-sisagua_agregado <- sisagua %>%
-  group_by(UF) %>%
-  summarise(POP_ESTIMADA = sum(`População estimada`, na.rm = TRUE))
+# group_by(UF, Ano) -> agrupa os dados por estado e por ano
+# soma as receitas dos vários meses do ano
+arrec_anual <- arrecadacao %>%
+  group_by(UF, Ano) %>%
+  summarise(
+    OUTRAS_RECEITAS_ANO = sum(`OUTRAS RECEITAS ADMINISTRADAS`, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  ungroup()  # garante que não ficam grupos ativos
 
+# Calcular a média anual de arrecadação por UF
+# calcula a média das receitas anuais (todos os anos analisados)
+arrec_agregado <- arrec_anual %>%
+  group_by(UF) %>%
+  summarise(
+    OUTRAS_RECEITAS = mean(OUTRAS_RECEITAS_ANO, na.rm = TRUE)
+  )
+
+#group_by(UF, `Ano de referência`) -> agrupa os dados por estado e por ano
+# soma a população estimada dos vários munícipios da UF
+sisagua_anual <- sisagua %>%
+  group_by(UF, `Ano de referência`) %>%
+  summarise(
+    POP_ANO = sum(`População estimada`, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  ungroup()  
+
+# Calcular a média anual da população abastecida por UF
+# calcula a média da população abastecida (todos os anos analisados)
+sisagua_agregado <- sisagua_anual %>%
+  group_by(UF) %>%
+  summarise(
+    POP_ESTIMADA = mean(POP_ANO, na.rm = TRUE)
+  )
+
+# ---------------------------------------------------------------
 # Integrar os dois datasets pelo identificador comum "UF"
-# e garantir que não existem NAs
+# left_join -> mantém todos os estados da arrecadação
+# filter(!is.na(...)) -> garante valores ausentes não são contabilizados
 dados_integrados <- left_join(arrec_agregado, sisagua_agregado, by = "UF") %>%
   filter(!is.na(POP_ESTIMADA) & !is.na(OUTRAS_RECEITAS))
+
 ```
+
+Para representar a arrecadação por UF, utilizou-se a variável OUTRAS RECEITAS ADMINISTRADAS, assumindo-a como uma aproximação proporcional do total de receitas.
+Já a variável POPULAÇÃO ESTIMADA abastecida foi escolhida como medida comparável entre UFs, refletindo a dimensão da população efetivamente abrangida pelo sistema de abastecimento.  
 
 ## Criar Gráfico
 
 ```{r}
 #| echo: true
 # Criar gráfico scatter com supressão de mensagens irrelevantes
-suppressWarnings(suppressMessages(
-  ggplot(dados_integrados, aes(x = POP_ESTIMADA, y = OUTRAS_RECEITAS, label = UF)) +
-    # Pontos azuis para cada estado
+suppressMessages(
+  ggplot(dados_integrados, aes(x = POP_ESTIMADA, y = OUTRAS_RECEITAS)) +
+    
+    # Cada ponto azul representa uma UF (estado)
     geom_point(color = "blue", size = 3) +
-    # Adicionar siglas dos estados junto aos pontos
-    geom_text(vjust = -1, hjust = 0.5, size = 2) +
-    # Linha de regressão linear (tendência)
-    suppressMessages(geom_smooth(method = "lm", se = FALSE, color = "red")) +
+    
+    # Adiciona a sigla da UF junto a cada ponto
+    geom_text(aes(label = UF), vjust = -1, hjust = 0.5, size = 2) +
+    
+    # Adiciona uma linha de regressão linear (reta de tendência)
+    # formula = y ~ x -> define explicitamente a relação para não aparecer o "Info"
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red") +
+    
     # Títulos e legendas dos eixos
     labs(
-      title = "Arrecadação vs População Abastecida por UF",
-      x = "População Abastecida Total",
-      y = "Outras Receitas Administradas (Total em R$)",
+      title = "Arrecadação vs População Abastecida por UF anualmente",
+      x = "População Abastecida",
+      y = "Outras Receitas Administradas (R$)",
       caption = "Dados agregados de 2000 a 2025"
     ) +
-    # Escalas logarítmicas, com notação compacta (M = milhão, G = bilhão, T = trilhão)
-    scale_x_log10(labels = label_number(scale_cut = cut_si("M"))) +
-    scale_y_log10(labels = label_number(scale_cut = cut_si("M"))) +
-    # Tema minimalista para estética limpa
+    
+    # Escalas logarítmicas nos dois eixos
+    # cut_si -> usa notação curta (K = mil, M = milhão, B = bilhão, T = trilhão)
+    scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_si("M"))) +
+    scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si("M"))) +
+    
+    # Tema minimalista para visual mais limpo
     theme_minimal()
-))
+)
+
 
 ```
 
-
-
 ## Interpretação do Gráfico
 
-O gráfico apresenta a relação entre a população abastecida total por UF (eixo X) e as outras receitas administradas (total em R\$) (eixo Y). Ambos os eixos estão em escala logarítmica, representados em milhões (MM), bilhões (GM) e trilhões (TM), o que permite comparar grandezas muito diferentes de forma proporcional.
+O gráfico apresenta a relação entre a média anual da população abastecida (eixo X) e média anual das outras receitas administradas(R\$) (eixo Y), entre 2000 e 2025 . Ambos os eixos estão em escala logarítmica, representados em K = mil, M = milhão, B = Bilhão, o que permite comparar grandezas muito diferentes de forma proporcional.
+
+
 
 A linha vermelha representa a reta de regressão linear ajustada aos dados: ou seja, a tendência média da relação entre população e receitas. O facto de a reta ter inclinação positiva confirma a correlação positiva: estados com maior população abastecida tendem, em média, a apresentar maior arrecadação.
 
 A dispersão dos pontos em torno da linha mostra o desvio em relação ao padrão esperado. Quanto mais distante um ponto estiver da linha, maior a discrepância entre a arrecadação real e a prevista pela relação populacional.
-
 
 Estados muito acima da linha, como DF, arrecadam mais do que seria esperado para a sua população, o que pode refletir fatores administrativos, maior peso de receitas específicas ou particularidades socioeconómicas.
 
@@ -117,6 +159,7 @@ No extremo inferior esquerdo, Amapá (AP), Acre (AC) e Roraima (RR) concentram-s
 # Code
 
 ## Cálculo percentagem canalização e arrecadação por município
+
 ```{r}
 #| echo: true
 
@@ -146,6 +189,7 @@ arrecadacao_RJ <- arrecadacao %>%
 ```
 
 ## Agregar e Integrar dados
+
 ```{r}
 #| echo: true
 
@@ -157,7 +201,13 @@ dados_RJ <- left_join(
 
 ```
 
+Para representar a arrecadação do estado do Rio de Janeiro, utilizou-se a variável IRPF (Imposto de Renda da Pessoa Física) da base de dados *arrecadaçao*, que reflete diretamente a capacidade contributiva da população e o nível de formalização do mercado de trabalho no estado.
+
+Já a variável canalização da base de dados *sisagua* foi escolhida como indicador do desenvolvimento da infraestrutura básica de saneamento, sendo usada para calcular a percentagem de municípios que possuem sistema de canalização na distribuição de água, em contraste com outras alternativas de abastecimento.
+
+
 ## Criar Gráfico
+
 ```{r}
 #| echo: true
 ggplot(dados_RJ, aes(x = perc_canalizada, y = receita_media_IRPF, label = `Ano de referência`)) +
@@ -181,3 +231,85 @@ ggplot(dados_RJ, aes(x = perc_canalizada, y = receita_media_IRPF, label = `Ano d
   theme_minimal()
 
 ```
+
+# Interpretação do Gráfico
+
+O gráfico apresenta a relação entre a percentagem de municípios com água canalizada (eixo X) e a média de receita do IRPF mensal (eixo Y) no estado do Rio de Janeiro, nos anos de 2014, 2016, 2018, 2020 e 2024. O eixo Y está representado numa escala abreviada (M = milhão, B = bilhão), permitindo visualizar a evolução de valores financeiros de grande magnitude.
+
+A linha vermelha representa a evolução temporal da relação entre as duas variáveis, mostrando a tendência geral ao longo dos anos analisados. A inclinação positiva da linha confirma uma correlação positiva entre as variáveis: à medida que aumenta a arrecadação média do IRPF do RJ, tende a aumentar também a percentagem de municípios com água canalizada.
+
+Os valores relativamente baixos de percentagem de canalização (entre aproximadamente 20% e 45%) refletem a realidade do estado do Rio de Janeiro, onde muitos municípios, especialmente em zonas rurais e periféricas, utilizam formas alternativas de acesso à água como chafarizes, poços, carro-pipa, fontes, cisternas e caixas d'água, em vez de sistemas de canalização convencionais.
+
+A forte correlação observada sugere que o desenvolvimento da infraestrutura básica de saneamento (representada pela canalização de água) pode estar associado a melhorias socioeconómicas que se refletem no aumento da arrecadação do imposto de renda, possivelmente indicando maior formalização do trabalho, melhores rendimentos da população e fortalecimento da atividade econômica no estado.
+
+# Glossário de Variáveis
+
+### *arrecadação*
+Variável em que está guardada a base de dados inicial nomeada "Arrecadação por UF.csv". Tem 47 variáveis (colunas) e 8290 observações (linhas).
+
+### *sisagua*
+Variável em que está guardada a base de dados inicial nomeada "cadastro_populacao_abastecida.csv". Tem 37 variáveis (colunas) e 1720737 observações (linhas).
+
+#### UF
+Variável de ambas as bases de dados *arrecadação* e *sisagua*. Foi usada para agregação e integração de novas bases de dados.
+
+### Ano ou Ano de Referência
+Variáveis (colunas) das bases *arrecadaçao* e *sisagua*, respetivamente. Foram usadas para agregação e integração de novas bases de dados.
+
+#### OUTRAS RECEITAS ADMINISTRADAS
+Variável da base de dados *arrecadação* que representa o valor em reais (R$) das receitas adicionais mensais por UF.
+
+#### OUTRAS_RECEITAS_ANO
+Variável criada para a base de dados *arrec_anual*. Contém a soma de todos os valores OUTRAS RECEITAS ADMINISTRADAS por UF nos vários anos analisados em arrecadação (2000- 2025).
+
+### *arrec_anual*
+Base de dados que contém: UF, ano, e OUTRAS_RECEITAS_ANO.
+
+#### OUTRAS_RECEITAS
+Variável criada para a base de dados *arrec_agregado* e posteriormente *dados_integrados*. Representa a média anual de todos os valores OUTRAS_RECEITAS_ANO por UF (dos anos em análise: 2000- 2025).
+
+### *arrec_agregado*
+Base de dados que contém: UF, OUTRAS_RECEITAS.
+
+### População_estimada
+Variável da base de dados *sisagua* que contém o número de pessoas abastecidas com água por municío por UF.
+
+#### POP_ANO
+Variável criada para a base de dados *sisagua_anual*. Contém a soma de todos os valores da variável População_estimada nos vários anos analisados em sisagua (2000- 2025).
+
+### *sisagua_anual*
+Base de dados que contém: UF, Ano de referência e POP_ANO.
+
+#### POP_ESTIMADA
+Variável criada para a base de dados *sisagua_agregado* e posteriormente *dados_integrados*. Representa a média anual de todos os valores POP_ANO por UF (dos anos em análise: 2000- 2025).
+
+### *sisagua_agregado*
+Base de dados que contém: UF e POP_ESTIMADA.
+
+### *dados_agregados*
+Base de dados que contém: UF, OUTRAS_RECEITAS e  POP_ESTIMADA.
+
+
+### Canalização
+Variável da base de dados *sisagua* que indica se a localidade possui canalização ("Sim", "Não", NA). Foi utilizada para calcular a percentagem de localidades canalizadas.
+
+### perc_canalizada
+Variável criada para a base de dados *perc_canalizada_RJ*. Representa a percentagem anual de localidades com canalização ("Sim") nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.
+
+### *perc_canalizada_RJ*
+Base de dados criada que contém: Ano de referência e perc_canalizada. 
+
+#### IRPF
+Variável da base de dados *arrecadação* que contém o valor arrecadado do Imposto de Renda da Pessoa Física por UF, originalmente em formato de texto com caracteres especiais.
+
+### IRPF_numeric
+Variável que representa o valor numérico do IRPF após limpeza dos caracteres especiais e conversão para formato numérico.
+
+### receita_media_IRPF
+Variável criada para a base de dados *arrecadacao_RJ*. Representa a média anual dos valores IRPF_numeric nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.
+
+### arrecadacao_RJ
+Base de dados criada que contém: Ano e receita_media_IRPF.
+
+### *dados_RJ*
+Base de dados que contém: Ano de referência, perc_canalizada e receita_media_IRPF.
