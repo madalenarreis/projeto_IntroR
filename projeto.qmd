@@ -31,14 +31,16 @@ suppressPackageStartupMessages(suppressWarnings({
 # Ler ficheiro de arrecadação (com supressão de mensagens de parsing)
 arrecadacao <- suppressMessages(
   read_csv2("dataset/Arrecadação por UF.csv",
+            # resolve problemas com caractéres especiais (ç, ã, é, etc.)
             locale = locale(encoding = "Latin1"), 
+            # omite a mensagem de tipos de colunas detectados
             show_col_types = FALSE)
 )
 
 # Ler ficheiro de população abastecida
 sisagua <- suppressMessages(
   read_csv2("dataset/cadastro_populacao_abastecida.csv",
-            locale = locale(encoding = "Latin1"),
+            locale = locale(encoding = "Latin1"), 
             show_col_types = FALSE)
 )
 
@@ -60,7 +62,8 @@ arrec_anual <- arrecadacao %>%
     OUTRAS_RECEITAS_ANO = sum(`OUTRAS RECEITAS ADMINISTRADAS`, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  ungroup()  # garante que não ficam grupos ativos
+  # garante que não ficam grupos ativos
+  ungroup() 
 
 # Calcular a média anual de arrecadação por UF
 # calcula a média das receitas anuais (todos os anos analisados)
@@ -88,7 +91,7 @@ sisagua_agregado <- sisagua_anual %>%
     POP_ESTIMADA = mean(POP_ANO, na.rm = TRUE)
   )
 
-# ---------------------------------------------------------------
+
 # Integrar os dois datasets pelo identificador comum "UF"
 # left_join -> mantém todos os estados da arrecadação
 # filter(!is.na(...)) -> garante valores ausentes não são contabilizados
@@ -97,8 +100,7 @@ dados_integrados <- left_join(arrec_agregado, sisagua_agregado, by = "UF") %>%
 
 ```
 
-Para representar a arrecadação por UF, utilizou-se a variável OUTRAS RECEITAS ADMINISTRADAS, assumindo-a como uma aproximação proporcional do total de receitas.
-Já a variável POPULAÇÃO ESTIMADA abastecida foi escolhida como medida comparável entre UFs, refletindo a dimensão da população efetivamente abrangida pelo sistema de abastecimento.  
+Para representar a arrecadação por UF, utilizou-se a variável OUTRAS RECEITAS ADMINISTRADAS, assumindo-a como uma aproximação proporcional do total de receitas. Já a variável POPULAÇÃO ESTIMADA abastecida foi escolhida como medida comparável entre UFs, refletindo a dimensão da população efetivamente abrangida pelo sistema de abastecimento.
 
 ## Criar Gráfico
 
@@ -131,7 +133,7 @@ suppressMessages(
     scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_si("M"))) +
     scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si("M"))) +
     
-    # Tema minimalista para visual mais limpo
+    # Tema minimalista para aspeto visual mais limpo
     theme_minimal()
 )
 
@@ -141,8 +143,6 @@ suppressMessages(
 ## Interpretação do Gráfico
 
 O gráfico apresenta a relação entre a média anual da população abastecida (eixo X) e média anual das outras receitas administradas(R\$) (eixo Y), entre 2000 e 2025 . Ambos os eixos estão em escala logarítmica, representados em K = mil, M = milhão, B = Bilhão, o que permite comparar grandezas muito diferentes de forma proporcional.
-
-
 
 A linha vermelha representa a reta de regressão linear ajustada aos dados: ou seja, a tendência média da relação entre população e receitas. O facto de a reta ter inclinação positiva confirma a correlação positiva: estados com maior população abastecida tendem, em média, a apresentar maior arrecadação.
 
@@ -163,26 +163,30 @@ No extremo inferior esquerdo, Amapá (AP), Acre (AC) e Roraima (RR) concentram-s
 ```{r}
 #| echo: true
 
+# Calcular percentagem de canalização no RJ nos anos de referência
 perc_canalizada_RJ <- sisagua %>%
   filter(UF == "RJ" & `Ano de referência` %in% c(2014 ,2016, 2018 ,2020 ,2024)) %>%
   # Remover linhas com NA na coluna Canalização
   filter(!is.na(Canalização)) %>%
   group_by(`Ano de referência`) %>%
   summarise(
-    # Calcular porcentagem corretamente e multiplicar por 100
+    # mean(Canalização == "Sim") conta proporção de "Sim" e converte para percentual
     perc_canalizada = mean(Canalização == "Sim", na.rm = TRUE) * 100
   )
-# Filtrar RJ e anos desejados
+
+# Filtra dados de arrecadação para RJ nos anos de referência
 arrecadacao_RJ <- arrecadacao %>%
   filter(UF == "RJ" & Ano %in% c(2014, 2016, 2018, 2020, 2024)) %>%
   mutate(
     IRPF_numeric = suppressWarnings(
+      # Remove caracteres não numéricos (R$, pontos, espaços) mantendo vírgula decimal
       as.numeric(gsub("[^0-9,]", "", IRPF))
     )
   ) %>%
   filter(!is.na(IRPF_numeric)) %>%
   group_by(Ano) %>%
   summarise(
+    # Calcular receita média do IRPF por ano
     receita_media_IRPF = mean(IRPF_numeric, na.rm = TRUE)
   )
 
@@ -193,6 +197,7 @@ arrecadacao_RJ <- arrecadacao %>%
 ```{r}
 #| echo: true
 
+# Combina dados de canalização e arrecadação usando left_join
 dados_RJ <- left_join(
   perc_canalizada_RJ, 
   arrecadacao_RJ, 
@@ -205,29 +210,36 @@ Para representar a arrecadação do estado do Rio de Janeiro, utilizou-se a vari
 
 Já a variável canalização da base de dados *sisagua* foi escolhida como indicador do desenvolvimento da infraestrutura básica de saneamento, sendo usada para calcular a percentagem de municípios que possuem sistema de canalização na distribuição de água, em contraste com outras alternativas de abastecimento.
 
-
 ## Criar Gráfico
 
 ```{r}
 #| echo: true
+
+# Criar gráfico de dispersão com linha temporal
 ggplot(dados_RJ, aes(x = perc_canalizada, y = receita_media_IRPF, label = `Ano de referência`)) +
+  # Pontos do gráfico de dispersão
   geom_point(color = "blue", size = 3) +
+  # Linha conectando os pontos em ordem temporal (group = 1 força uma única linha)
   geom_line(aes(group = 1), color = "red") +
+  # Rótulos com os anos próximos aos pontos
   geom_text(vjust = -1, hjust = 0.5) +
-  # REMOVER ou ALTERAR a linha abaixo:
-  scale_x_continuous(limits = c(0, 100)) +  # Apenas define limites de 0 a 100%
+  # Define que o eixo x vai de 0% a 100% 
+  scale_x_continuous(limits = c(0, 100)) +
+  # Formata os números do eixo y automaticamente (K para milhares, M para milhões, etc.)
   scale_y_continuous(
     labels = scales::label_number(
       scale_cut = scales::cut_short_scale()  # K, M, B, T automaticamente
     ),
     limits = c(0, max(dados_RJ$receita_media_IRPF) * 1.1)
   ) +
+  # Personalização de rótulos e títulos
   labs(
     title = "Arrecadação IRPF vs Água Canalizada no RJ",
     x = "Percentagem de municípios com água canalizada (%)",
     y = "Média de Receita IRPF mensal do RJ (R$)",
     caption = "Anos analisados: 2014, 2016, 2018, 2020, 2024"
   ) +
+  # Tema minimalista para aspeto visual mais limpo
   theme_minimal()
 
 ```
@@ -245,71 +257,93 @@ A forte correlação observada sugere que o desenvolvimento da infraestrutura b�
 # Glossário de Variáveis
 
 ### *arrecadação*
+
 Variável em que está guardada a base de dados inicial nomeada "Arrecadação por UF.csv". Tem 47 variáveis (colunas) e 8290 observações (linhas).
 
 ### *sisagua*
+
 Variável em que está guardada a base de dados inicial nomeada "cadastro_populacao_abastecida.csv". Tem 37 variáveis (colunas) e 1720737 observações (linhas).
 
 #### UF
+
 Variável de ambas as bases de dados *arrecadação* e *sisagua*. Foi usada para agregação e integração de novas bases de dados.
 
 ### Ano ou Ano de Referência
+
 Variáveis (colunas) das bases *arrecadaçao* e *sisagua*, respetivamente. Foram usadas para agregação e integração de novas bases de dados.
 
 #### OUTRAS RECEITAS ADMINISTRADAS
-Variável da base de dados *arrecadação* que representa o valor em reais (R$) das receitas adicionais mensais por UF.
+
+Variável da base de dados *arrecadação* que representa o valor em reais (R\$) das receitas adicionais mensais por UF.
 
 #### OUTRAS_RECEITAS_ANO
+
 Variável criada para a base de dados *arrec_anual*. Contém a soma de todos os valores OUTRAS RECEITAS ADMINISTRADAS por UF nos vários anos analisados em arrecadação (2000- 2025).
 
 ### *arrec_anual*
+
 Base de dados que contém: UF, ano, e OUTRAS_RECEITAS_ANO.
 
 #### OUTRAS_RECEITAS
+
 Variável criada para a base de dados *arrec_agregado* e posteriormente *dados_integrados*. Representa a média anual de todos os valores OUTRAS_RECEITAS_ANO por UF (dos anos em análise: 2000- 2025).
 
 ### *arrec_agregado*
+
 Base de dados que contém: UF, OUTRAS_RECEITAS.
 
 ### População_estimada
+
 Variável da base de dados *sisagua* que contém o número de pessoas abastecidas com água por municío por UF.
 
 #### POP_ANO
+
 Variável criada para a base de dados *sisagua_anual*. Contém a soma de todos os valores da variável População_estimada nos vários anos analisados em sisagua (2000- 2025).
 
 ### *sisagua_anual*
+
 Base de dados que contém: UF, Ano de referência e POP_ANO.
 
 #### POP_ESTIMADA
+
 Variável criada para a base de dados *sisagua_agregado* e posteriormente *dados_integrados*. Representa a média anual de todos os valores POP_ANO por UF (dos anos em análise: 2000- 2025).
 
 ### *sisagua_agregado*
+
 Base de dados que contém: UF e POP_ESTIMADA.
 
 ### *dados_agregados*
-Base de dados que contém: UF, OUTRAS_RECEITAS e  POP_ESTIMADA.
 
+Base de dados que contém: UF, OUTRAS_RECEITAS e POP_ESTIMADA.
 
 ### Canalização
+
 Variável da base de dados *sisagua* que indica se a localidade possui canalização ("Sim", "Não", NA). Foi utilizada para calcular a percentagem de localidades canalizadas.
 
 ### perc_canalizada
+
 Variável criada para a base de dados *perc_canalizada_RJ*. Representa a percentagem anual de localidades com canalização ("Sim") nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.
 
 ### *perc_canalizada_RJ*
-Base de dados criada que contém: Ano de referência e perc_canalizada. 
+
+Base de dados criada que contém: Ano de referência e perc_canalizada.
 
 #### IRPF
+
 Variável da base de dados *arrecadação* que contém o valor arrecadado do Imposto de Renda da Pessoa Física por UF, originalmente em formato de texto com caracteres especiais.
 
 ### IRPF_numeric
+
 Variável que representa o valor numérico do IRPF após limpeza dos caracteres especiais e conversão para formato numérico.
 
 ### receita_media_IRPF
+
 Variável criada para a base de dados *arrecadacao_RJ*. Representa a média anual dos valores IRPF_numeric nos anos 2014, 2016, 2018, 2020, 2024 no Rio de Janeiro.
 
 ### arrecadacao_RJ
+
 Base de dados criada que contém: Ano e receita_media_IRPF.
 
 ### *dados_RJ*
+
 Base de dados que contém: Ano de referência, perc_canalizada e receita_media_IRPF.
