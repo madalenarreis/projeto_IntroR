@@ -1,6 +1,6 @@
 ## Análise de Dados: Arrecadação Fiscal vs Infraestrutura de Saneamento
 
-## Link do site:  https://madalenarreis.github.io/teste/
+## Link do site:  https://madalenarreis.github.io/projeto_IntroR/
 
 ## Descrição do Projeto:
 Este projeto realiza uma análise integrada de dados governamentais brasileiros, combinando diferentes fontes oficiais para extrair insights sobre desenvolvimento regional e políticas públicas. A abordagem utiliza técnicas modernas de análise de dados para investigar relações entre variáveis socioeconómicas e indicadores de desenvolvimento.
@@ -22,8 +22,11 @@ Contexto do trabalho:
 Os datasets podem ser de qualquer área: saúde, educação, economia, etc. Podem ser dados nacionais ou regionais.
 envia-me:
 --Os links diretos para fazer download dos datasets
+
 --Uma breve explicação do que cada conjunto contém
+
 --Uma ideia de como poderiam ser relacionados na análise
+
 Obrigada pela ajuda!
 "
 
